@@ -13,3 +13,20 @@ dependencies = [
 
 [project.scripts]
 lightning-detector = "lightning_detector.cli:main"
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+zip-safe = false
+
+[tool.setuptools.packages.find]
+include = ["lightning_detector*"]
+exclude = [
+    "videos*",
+    "tmp_web*",
+    "docs*",
+    "scripts*",
+    "tests*",
+]

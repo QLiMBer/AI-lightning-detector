@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from .json_utils import parse_detection_json, to_pretty_json
-from .model import MiniCPMWrapper
+from .model import MiniCPMWrapper, ModelConfig
 from .video import (
     inspect_video,
     list_mp4_files,
@@ -79,8 +79,17 @@ def cmd_scan(args: argparse.Namespace) -> int:
         print(f"No .mp4 files found in {input_dir}")
         return 0
 
-    # lazy model load (on first actual inference)
-    model: Optional[MiniCPMWrapper] = None
+    # Preload model once to fail fast and trigger weight download
+    try:
+        model = MiniCPMWrapper(ModelConfig(attn_impl=args.attn, torch_dtype=args.dtype))
+    except Exception as e:
+        if "flash_attn_required" in str(e):
+            print(
+                "Model requested flash-attn. Install 'flash-attn' or try --attn sdpa.\n"
+                "If sdpa still fails, flash-attn wheels may be required for your CUDA."
+            )
+        # still proceed; per-file handling below will write error reports
+        model = None
 
     for vid in files:
         meta = inspect_video(vid)
@@ -112,7 +121,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
         raw_text: str
         try:
             if model is None:
-                model = MiniCPMWrapper()
+                # last-chance lazy init if preload failed
+                model = MiniCPMWrapper(ModelConfig(attn_impl=args.attn, torch_dtype=args.dtype))
             raw_text = model.chat(
                 frames=frames,
                 prompt=prompt,
@@ -121,6 +131,12 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 temporal_ids=temporal_ids,
             )
         except Exception as e:
+            # Emit a clearer console note on first failure
+            if "flash_attn_required" in str(e):
+                print(
+                    "Model requested flash-attn. Install 'flash-attn' or try --attn sdpa.\n"
+                    "If sdpa still fails, flash-attn wheels may be required for your CUDA."
+                )
             raw_text = f"ERROR: inference_failed: {e}"
 
         data = parse_detection_json(raw_text)
@@ -160,6 +176,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     scan.add_argument("--max-frames", type=int, default=64, help="Max frames after sampling (default: 64)")
     scan.add_argument("--max-slice-nums", type=int, default=1, help="Split hi-res frames to avoid OOM (default: 1)")
+    scan.add_argument("--attn", choices=["sdpa", "flash_attention_2", "eager"], default="sdpa", help="Attention backend (default: sdpa)")
+    scan.add_argument("--dtype", choices=["bfloat16", "float16", "float32"], default="bfloat16", help="Torch dtype (default: bfloat16)")
     scan.add_argument("--thinking", action="store_true", help="Enable deep thinking mode")
     scan.set_defaults(func=cmd_scan)
 
@@ -174,4 +192,3 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -1,0 +1,2 @@
+[console_scripts]
+lightning-detector = lightning_detector.cli:main

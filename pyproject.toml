@@ -1,0 +1,15 @@
+[project]
+name = "lightning-detector"
+version = "0.1.0"
+description = "Lightning detection with MiniCPM-V 4.5"
+requires-python = ">=3.10"
+dependencies = [
+    "transformers==4.44.2",
+    "pillow>=10.0.0",
+    "numpy>=2.0.0",
+    "scipy>=1.11.0",
+    "decord>=0.6.0",
+]
+
+[project.scripts]
+lightning-detector = "lightning_detector.cli:main"

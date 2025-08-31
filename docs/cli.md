@@ -51,3 +51,74 @@ For more scenarios and explanations, see `docs/user-guide.md`.
   - `lightning-detector scan --fps 3 --max-frames 48`
 - Longer clips, more coverage:
   - `lightning-detector scan --fps 3 --packing 3 --max-frames 48 --max-slice-nums 2`
+
+## Generated Help (sync via scripts/sync_cli_help.py)
+
+<!-- BEGIN: GENERATED SCAN HELP -->
+
+```
+usage: lightning-detector scan [-h] [--input INPUT] [--output OUTPUT]
+                               [--fps FPS] [--packing PACKING]
+                               [--max-frames MAX_FRAMES]
+                               [--max-slice-nums MAX_SLICE_NUMS]
+                               [--model-revision MODEL_REVISION]
+                               [--attn {sdpa,flash_attention_2,eager}]
+                               [--dtype {bfloat16,float16,float32}]
+                               [--thinking] [--no-preload-model]
+                               [--image-size IMAGE_SIZE] [--no-resize]
+                               [--batch-size BATCH_SIZE] [--no-color]
+                               [--quiet]
+
+options:
+  -h, --help            show this help message and exit
+  --packing PACKING     Temporal packing level for 3D-Resampler: 0 disables
+                        packing; 1–6 pack consecutive frames to increase
+                        coverage at similar cost (default: 0)
+
+I/O:
+  --input INPUT         Input directory with .mp4 files (default: videos)
+  --output OUTPUT       Output directory for <name>.json, <name>.txt and
+                        index.txt (default: reports)
+
+Common tweaks:
+  --fps FPS             Frames-per-second to sample before packing (lower =
+                        faster; higher = more coverage) (default: 2)
+  --max-frames MAX_FRAMES
+                        Cap frames per video after sampling/packing (0 =
+                        unlimited; use with care for long videos) (default: 0)
+  --max-slice-nums MAX_SLICE_NUMS
+                        Split hi-res frames into slices to reduce VRAM
+                        (increase if OOM) (default: 1)
+
+Model:
+  --model-revision MODEL_REVISION
+                        Pin the model repo revision (commit SHA, tag, or
+                        branch). Improves reproducibility and avoids surprise
+                        code updates from Hugging Face. (default: )
+
+Advanced:
+  --attn {sdpa,flash_attention_2,eager}
+                        Attention backend; prefer sdpa unless you installed a
+                        matching flash-attn wheel (default: sdpa)
+  --dtype {bfloat16,float16,float32}
+                        Computation dtype; float16 is broadly compatible;
+                        bfloat16 on newer GPUs; float32 for debugging
+                        (default: float16)
+  --thinking            Enable deeper reasoning mode (higher latency)
+                        (default: False)
+  --no-preload-model    Skip upfront model load; initialize lazily before
+                        first video (default: False)
+  --image-size IMAGE_SIZE
+                        Resize frames to this square size before inference
+                        (multiple of 14 recommended) (default: 448)
+  --no-resize           Do not resize frames; may cause tensor size mismatch
+                        on some videos (default: False)
+  --batch-size BATCH_SIZE
+                        Microbatch size for robust fallback when size
+                        mismatches occur (default: 16)
+  --no-color            Disable ANSI colors in console output (default: False)
+  --quiet               Reduce library noise (transformers logs, deprecation
+                        warnings) (default: False)
+```
+
+<!-- END: GENERATED SCAN HELP -->

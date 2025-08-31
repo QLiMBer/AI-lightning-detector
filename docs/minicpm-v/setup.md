@@ -7,6 +7,7 @@ Note: Developer reference for the underlying model. Typical users can skip this 
 - Transformers: 4.47–<5 (required for Qwen3Config used by upstream MiniCPM‑V code)
 - Key Python deps: `transformers`, `torch`, `accelerate` (optional), `decord` (video), `Pillow`, `numpy`, `scipy`
 - Optional: `flash-attn` if you want FlashAttention2; else use `attn_implementation='sdpa'`
+  - Note: some upstream revisions may import FlashAttention unconditionally; prefer pinning a known‑good `--model-revision` and/or run offline during PoCs to avoid surprise changes.
 
 Install (baseline)
 
@@ -59,3 +60,4 @@ Troubleshooting first run
 - Force a fresh download in a local cache and skip preload:
   - `HF_HOME=.hf-cache TRANSFORMERS_CACHE=.hf-cache/hub lightning-detector scan --input videos --output reports --fps 1 --max-frames 16 --max-slice-nums 1 --attn sdpa --dtype float16 --no-preload-model`
   - You should see Hugging Face download progress and CLI "Processing … / Finished …" logs.
+  - For reproducibility (avoid upstream code changes mid‑run): add `--model-revision <commit-or-tag>` and optionally export `TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1` once the snapshot is cached.

@@ -16,9 +16,29 @@ Common issues and fixes
 - FlashAttention errors
   - Keep `--attn sdpa` unless your `flash-attn` wheel matches your exact Torch+CUDA. On mismatch, prefer SDPA.
 
+- Upstream revision suddenly requires flash-attn (even with `--attn sdpa`)
+  - Symptom: `This modeling file requires the following packages ... flash_attn` or CLI note `flash_attn_required`.
+  - Why: the model’s remote Python code changed; some revisions import FlashAttention2 unconditionally.
+  - Quick fixes:
+    - Pin a known‑good model revision and run offline to avoid updating code:
+      - `export TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1`
+      - `lightning-detector scan --model-revision <commit-sha> --attn sdpa --dtype float16`
+    - If you must use flash‑attn, install a matching wheel (fragile):
+      - `uv pip install --prefix .venv --no-build-isolation flash-attn`
+      - If wheels aren’t available, a source build needs CUDA toolkit + `CUDA_HOME` and `nvcc` on PATH (heavier and error‑prone on WSL2).
+  - Prevent: always pass `--model-revision` for reproducibility; consider `TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1` during PoCs.
+
 - "Why did it download Python files?" (model code updates)
   - This model requires `trust_remote_code=True` and ships custom Python modules (e.g., `modeling_minicpmv.py`, `resampler.py`). On first run—or when the upstream repo updates—Transformers fetches those files and warns so you can review changes.
   - To avoid surprise updates and make runs reproducible, pin the model revision: add `--model-revision <commit-or-tag>` to your command (e.g., a commit SHA from the model repo).
+
+- Processor/AutoProcessor mismatch (MiniCPMV)
+  - Symptoms:
+    - `Unrecognized processing class ... Can't instantiate a processor, a tokenizer, an image processor or a feature extractor for this model.`
+    - `MiniCPMVTokenizerFast has no attribute image_processor`
+  - Cause: some MiniCPM‑V snapshots need a custom `Processor` (image + text). Older Transformers or naive `AutoProcessor` calls can return a tokenizer only.
+  - Fixed in this repo: the model wrapper now constructs `MiniCPMVProcessor` via dynamic modules and passes it to `model.chat`.
+  - If you see this on an older checkout: update the repo and rerun.
 
 - Stuck at first model load / no GPU activity
   - Avoid suspended runs holding cache locks (Ctrl‑Z). List and kill: `jobs -l` then `kill -TERM %<id>` (or `pkill -f lightning-detector`).

@@ -23,6 +23,9 @@ This guide covers day‑to‑day usage, common recipes, outputs, and practical t
   - `lightning-detector scan --image-size 448`
 - Reproducibility: pin model code revision from Hugging Face:
   - `lightning-detector scan --model-revision <commit-or-tag>`
+  - For PoCs, consider forcing offline to avoid surprise upstream changes:
+    - `export TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1`
+    - `lightning-detector scan --model-revision <commit-sha> ...`
 
 See `docs/cli.md` for the full list of options and defaults.
 
@@ -58,4 +61,3 @@ See `docs/cli.md` for the full list of options and defaults.
 - To use a local model cache (optional), prefix commands:
   - `HF_HOME=.hf-cache TRANSFORMERS_CACHE=.hf-cache/hub lightning-detector scan`
 - If the first run stalls (cache locks), check and clear stale processes/locks (see `docs/troubleshooting.md`).
-

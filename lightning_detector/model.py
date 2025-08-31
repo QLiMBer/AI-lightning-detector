@@ -89,6 +89,49 @@ class MiniCPMWrapper:
         )
         print("[model] Tokenizer ready.", flush=True)
 
+        # Some upstream revisions expect a Processor (custom image+text processing).
+        # Try to load it if available; continue without if not present.
+        self.processor = None
+        try:
+            from transformers import AutoProcessor  # type: ignore
+            self.processor = AutoProcessor.from_pretrained(
+                self.cfg.model_id,
+                trust_remote_code=True,
+                **rev_kwargs,
+            )
+            # Some versions of Transformers return a tokenizer here for this repo.
+            if not hasattr(self.processor, "image_processor"):
+                raise AttributeError("AutoProcessor returned a tokenizer (missing image_processor)")
+            cls = type(self.processor)
+            print(f"[model] Processor ready: {cls.__module__}.{cls.__name__}", flush=True)
+        except Exception as e:
+            # Fallback: construct the processor from the repo's dynamic module.
+            try:
+                from transformers import AutoImageProcessor  # type: ignore
+                from transformers.dynamic_module_utils import (
+                    get_class_from_dynamic_module,  # type: ignore
+                )
+
+                img_proc = AutoImageProcessor.from_pretrained(
+                    self.cfg.model_id,
+                    trust_remote_code=True,
+                    **rev_kwargs,
+                )
+                ProcCls = get_class_from_dynamic_module(
+                    "processing_minicpmv.MiniCPMVProcessor",
+                    self.cfg.model_id,
+                    revision=self.cfg.revision,
+                )
+                self.processor = ProcCls(image_processor=img_proc, tokenizer=self.tokenizer)
+                cls = type(self.processor)
+                print(
+                    f"[model] Processor constructed via dynamic module: {cls.__module__}.{cls.__name__}",
+                    flush=True,
+                )
+            except Exception as e2:
+                # Older revisions may not ship a processor; that's fine.
+                print(f"[model] Processor not available: {e2}", flush=True)
+
     def chat(
         self,
         frames: List[Any],
@@ -98,13 +141,16 @@ class MiniCPMWrapper:
         temporal_ids: Optional[List[List[int]]] = None,
     ) -> str:
         msgs = [{"role": "user", "content": frames + [prompt]}]
-        res = self.model.chat(
-            msgs=msgs,
-            tokenizer=self.tokenizer,
-            use_image_id=False,
-            max_slice_nums=max_slice_nums,
-            enable_thinking=enable_thinking,
-            temporal_ids=temporal_ids,
-        )
+        kwargs: Dict[str, Any] = {
+            "msgs": msgs,
+            "tokenizer": self.tokenizer,
+            "max_slice_nums": max_slice_nums,
+            "enable_thinking": enable_thinking,
+            "temporal_ids": temporal_ids,
+        }
+        if getattr(self, "processor", None) is not None:
+            kwargs["processor"] = self.processor  # type: ignore[assignment]
+
+        res = self.model.chat(**kwargs)
         # upstream returns string
         return str(res)

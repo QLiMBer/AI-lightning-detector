@@ -199,24 +199,76 @@ def cmd_scan(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="lightning-detector", description="Detect lightning in videos using MiniCPM-V 4.5")
+    p = argparse.ArgumentParser(
+        prog="lightning-detector",
+        description="Detect lightning in videos using MiniCPM-V 4.5",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  lightning-detector scan --input videos --output reports --fps 1 --max-frames 8 --max-slice-nums 1\n"
+            "  lightning-detector scan --fps 3 --packing 3 --max-frames 48 --max-slice-nums 2\n"
+        ),
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    scan = sub.add_parser("scan", help="Scan input directory of .mp4 files and write reports")
-    scan.add_argument("--input", default=DEFAULT_INPUT, help=f"Input directory (default: {DEFAULT_INPUT})")
-    scan.add_argument("--output", default=DEFAULT_OUTPUT, help=f"Output directory (default: {DEFAULT_OUTPUT})")
-    scan.add_argument("--fps", type=int, default=5, help="Target sampling FPS (default: 5)")
+    scan = sub.add_parser(
+        "scan",
+        help="Scan input directory of .mp4 files and write JSON/text reports",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    scan.add_argument(
+        "--input",
+        default=DEFAULT_INPUT,
+        help="Input directory containing .mp4 files to analyze",
+    )
+    scan.add_argument(
+        "--output",
+        default=DEFAULT_OUTPUT,
+        help="Directory to write <video>.json (structured) and <video>.txt (raw) plus index.txt",
+    )
+    scan.add_argument(
+        "--fps",
+        type=int,
+        default=5,
+        help="Frames-per-second to sample from each video before packing; lower is faster/less coverage",
+    )
     scan.add_argument(
         "--packing",
         type=int,
         default=0,
-        help="Temporal packing level 0(off) or 1–6 (default: 0)",
+        help=(
+            "Temporal packing level for 3D-Resampler: 0 disables packing; 1–6 pack consecutive frames to increase coverage at similar cost"
+        ),
     )
-    scan.add_argument("--max-frames", type=int, default=64, help="Max frames after sampling (default: 64)")
-    scan.add_argument("--max-slice-nums", type=int, default=1, help="Split hi-res frames to avoid OOM (default: 1)")
-    scan.add_argument("--attn", choices=["sdpa", "flash_attention_2", "eager"], default="sdpa", help="Attention backend (default: sdpa)")
-    scan.add_argument("--dtype", choices=["bfloat16", "float16", "float32"], default="bfloat16", help="Torch dtype (default: bfloat16)")
-    scan.add_argument("--thinking", action="store_true", help="Enable deep thinking mode")
+    scan.add_argument(
+        "--max-frames",
+        type=int,
+        default=64,
+        help="Hard cap on frames sent to the model per video (after sampling and packing)",
+    )
+    scan.add_argument(
+        "--max-slice-nums",
+        type=int,
+        default=1,
+        help="Split high-resolution frames into slices to reduce VRAM usage (increase if you see OOM)",
+    )
+    scan.add_argument(
+        "--attn",
+        choices=["sdpa", "flash_attention_2", "eager"],
+        default="sdpa",
+        help="Attention backend: sdpa is default and stable; flash_attention_2 only if compatible wheel is installed",
+    )
+    scan.add_argument(
+        "--dtype",
+        choices=["bfloat16", "float16", "float32"],
+        default="bfloat16",
+        help="Computation dtype: bfloat16 on Ampere+/BF16 GPUs; float16 for widest compatibility; float32 for debugging",
+    )
+    scan.add_argument(
+        "--thinking",
+        action="store_true",
+        help="Enable deeper reasoning mode; potentially higher latency",
+    )
     scan.add_argument("--no-preload-model", action="store_true", help="Skip upfront model load; initialize lazily per file")
     scan.set_defaults(func=cmd_scan)
 

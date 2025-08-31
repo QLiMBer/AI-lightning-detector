@@ -13,6 +13,7 @@ Docs Index
 - Setup (Python/CUDA/Deps): `docs/minicpm-v/setup.md`
 - Video Inference Usage: `docs/minicpm-v/usage-video.md`
 - Deployment Options: `docs/minicpm-v/deployment.md`
+- CLI Reference: `docs/cli.md`
 - Troubleshooting & First‑Run Notes: `docs/troubleshooting.md`
 - References: `docs/references.md`
 

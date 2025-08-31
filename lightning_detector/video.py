@@ -139,3 +139,21 @@ def sample_frames_with_temporal_ids(
         temporal_ids.append(list(ts_ids[i : i + packing]))
 
     return frames, temporal_ids
+
+
+def normalize_frames(
+    frames: List[Image.Image], target_size: int = 448, keep_rgb: bool = True
+) -> List[Image.Image]:
+    """Resize frames to a fixed square size to ensure consistent token shapes.
+
+    MiniCPM‑V uses a patch size of 14 and a scale resolution of 448 by default.
+    Resizing to 448x448 ensures identical token counts across frames.
+    """
+    out: List[Image.Image] = []
+    for img in frames:
+        if keep_rgb:
+            img = img.convert("RGB")
+        if img.width != target_size or img.height != target_size:
+            img = img.resize((target_size, target_size), Image.BICUBIC)
+        out.append(img)
+    return out

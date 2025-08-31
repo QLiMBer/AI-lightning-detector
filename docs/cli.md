@@ -14,6 +14,8 @@
 - `--max-slice-nums INT` (default: 1): split hi‑res frames into slices to reduce VRAM use. Increase if you hit OOM (e.g., `2` or `3`).
 - `--attn {sdpa,flash_attention_2,eager}` (default: sdpa): attention backend. `sdpa` uses PyTorch’s scaled dot‑product attention (stable, built‑in). `flash_attention_2` uses custom CUDA kernels for speed but requires an exact‑match wheel for your Torch/CUDA. `eager` is a fallback (slower).
 - `--dtype {bfloat16,float16,float32}` (default: float16): numeric precision for compute. `float16` (FP16) is compatible on most GPUs and fast. `bfloat16` (BF16) can be more numerically stable on newer GPUs (e.g., Ampere+ with BF16) with similar speed. `float32` is highest precision but slowest and uses most VRAM — helpful for debugging.
+- `--image-size INT` (default: 448): resize frames to a fixed square size before inference to ensure consistent token shapes. 448 works well with the model’s 14‑pixel patch size (32×32 patches).
+- `--no-resize`: disable resizing. Use only if you’re certain all frames produce identical token shapes; otherwise you may hit size mismatch errors.
 - `--thinking`: enable deeper reasoning mode (higher latency).
 - `--no-preload-model`: skip upfront model load; the model initializes lazily before the first video. Useful to surface download/progress.
 

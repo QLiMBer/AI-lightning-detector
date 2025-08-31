@@ -16,6 +16,7 @@ from .video import (
     list_mp4_files,
     sample_frames_uniform,
     sample_frames_with_temporal_ids,
+    normalize_frames,
 )
 
 
@@ -169,6 +170,10 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 f"Sampled {len(frames)} frame(s) with packing; groups={len(temporal_ids)}",
                 flush=True,
             )
+
+        # Normalize frame sizes to avoid tensor-size mismatches inside the model
+        if not getattr(args, "no_resize", False):
+            frames = normalize_frames(frames, target_size=int(args.image_size))
 
         prompt = build_prompt_json(
             {
@@ -377,6 +382,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-preload-model",
         action="store_true",
         help="Skip upfront model load; initialize lazily before first video",
+    )
+    grp_adv.add_argument(
+        "--image-size",
+        type=int,
+        default=448,
+        help="Resize frames to this square size before inference (multiple of 14 recommended)",
+    )
+    grp_adv.add_argument(
+        "--no-resize",
+        action="store_true",
+        help="Do not resize frames; may cause tensor size mismatch on some videos",
     )
     grp_adv.add_argument(
         "--no-color",

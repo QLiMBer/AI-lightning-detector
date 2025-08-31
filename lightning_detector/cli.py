@@ -204,9 +204,11 @@ def build_parser() -> argparse.ArgumentParser:
         description="Detect lightning in videos using MiniCPM-V 4.5",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         epilog=(
-            "Examples:\n"
-            "  lightning-detector scan --input videos --output reports --fps 1 --max-frames 8 --max-slice-nums 1\n"
-            "  lightning-detector scan --fps 3 --packing 3 --max-frames 48 --max-slice-nums 2\n"
+            "Typical usage:\n"
+            "  lightning-detector scan\n\n"
+            "Common tweaks:\n"
+            "  lightning-detector scan --fps 2 --max-frames 32\n"
+            "  lightning-detector scan --packing 3 --max-slice-nums 2\n"
         ),
     )
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -216,21 +218,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Scan input directory of .mp4 files and write JSON/text reports",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    scan.add_argument(
-        "--input",
-        default=DEFAULT_INPUT,
-        help="Input directory containing .mp4 files to analyze",
-    )
-    scan.add_argument(
+    grp_io = scan.add_argument_group("I/O")
+    grp_io.add_argument("--input", default=DEFAULT_INPUT, help="Input directory with .mp4 files")
+    grp_io.add_argument(
         "--output",
         default=DEFAULT_OUTPUT,
-        help="Directory to write <video>.json (structured) and <video>.txt (raw) plus index.txt",
+        help="Output directory for <name>.json, <name>.txt and index.txt",
     )
-    scan.add_argument(
+
+    grp_common = scan.add_argument_group("Common tweaks")
+    grp_common.add_argument(
         "--fps",
         type=int,
-        default=5,
-        help="Frames-per-second to sample from each video before packing; lower is faster/less coverage",
+        default=2,
+        help="Frames-per-second to sample before packing (lower = faster; higher = more coverage)",
     )
     scan.add_argument(
         "--packing",
@@ -240,36 +241,39 @@ def build_parser() -> argparse.ArgumentParser:
             "Temporal packing level for 3D-Resampler: 0 disables packing; 1–6 pack consecutive frames to increase coverage at similar cost"
         ),
     )
-    scan.add_argument(
-        "--max-frames",
-        type=int,
-        default=64,
-        help="Hard cap on frames sent to the model per video (after sampling and packing)",
+    grp_common.add_argument(
+        "--max-frames", type=int, default=32, help="Cap frames per video after sampling/packing"
     )
-    scan.add_argument(
+    grp_common.add_argument(
         "--max-slice-nums",
         type=int,
         default=1,
-        help="Split high-resolution frames into slices to reduce VRAM usage (increase if you see OOM)",
+        help="Split hi-res frames into slices to reduce VRAM (increase if OOM)",
     )
-    scan.add_argument(
+
+    grp_adv = scan.add_argument_group("Advanced")
+    grp_adv.add_argument(
         "--attn",
         choices=["sdpa", "flash_attention_2", "eager"],
         default="sdpa",
-        help="Attention backend: sdpa is default and stable; flash_attention_2 only if compatible wheel is installed",
+        help="Attention backend; prefer sdpa unless you installed a matching flash-attn wheel",
     )
-    scan.add_argument(
+    grp_adv.add_argument(
         "--dtype",
         choices=["bfloat16", "float16", "float32"],
-        default="bfloat16",
-        help="Computation dtype: bfloat16 on Ampere+/BF16 GPUs; float16 for widest compatibility; float32 for debugging",
+        default="float16",
+        help="Computation dtype; float16 is broadly compatible; bfloat16 on newer GPUs; float32 for debugging",
     )
-    scan.add_argument(
+    grp_adv.add_argument(
         "--thinking",
         action="store_true",
-        help="Enable deeper reasoning mode; potentially higher latency",
+        help="Enable deeper reasoning mode (higher latency)",
     )
-    scan.add_argument("--no-preload-model", action="store_true", help="Skip upfront model load; initialize lazily per file")
+    grp_adv.add_argument(
+        "--no-preload-model",
+        action="store_true",
+        help="Skip upfront model load; initialize lazily before first video",
+    )
     scan.set_defaults(func=cmd_scan)
 
     return p

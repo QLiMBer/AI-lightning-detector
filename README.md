@@ -20,7 +20,31 @@ Local CLI to detect lightning flashes in `.mp4` videos using MiniCPM‑V 4.5.
     - Control runtime/VRAM on long clips: `--packing 3 --max-slice-nums 2`
     - Cap frames (0 = unlimited): `--max-frames 64`
 
- Outputs are written to `reports/` (`<name>.json`, `<name>.txt`, `index.txt`).
+Outputs are written to `reports/` (`<name>.json`, `<name>.txt`, `index.txt`).
+
+## Stable vs Latest (Reproducibility)
+
+Two practical workflows, pick what you need today:
+
+- Stable (pinned snapshot; reliable for day‑to‑day work):
+  - Find a known‑good revision (commit SHA) in your HF cache: `ls ~/.cache/huggingface/hub/models--openbmb--MiniCPM-V-4_5/snapshots`
+  - Force offline to avoid surprise updates and run the pinned snapshot:
+    - `export TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1`
+    - `lightning-detector scan --model-revision <commit-sha> --attn sdpa --dtype float16`
+
+- Latest (track upstream changes; expect occasional breakage):
+  - Do NOT set the offline env vars. Omit `--model-revision` so Transformers pulls the newest remote code.
+  - If a breaking change appears (e.g., new flash‑attn requirement), switch back to the Stable workflow above.
+
+Minimal reproducible run (stable example)
+
+- `export TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1`
+- `lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1 --attn sdpa --dtype float16 --fps 2 --packing 0`
+
+Notes
+
+- Some upstream revisions hard‑require FlashAttention2. If you see errors about `flash_attn` even with `--attn sdpa`, use the Stable workflow (pin + offline) or install a matching `flash-attn` wheel for your Torch/CUDA.
+- Certain snapshots need a custom Processor; the CLI now constructs and passes it automatically. If you’re on an older checkout, pull latest from this repo.
 
 ## Daily Usage (after reboot)
 
@@ -52,6 +76,19 @@ Local CLI to detect lightning flashes in `.mp4` videos using MiniCPM‑V 4.5.
 ## Troubleshooting
 
 - First‑run tips, cache/locks, and CUDA placement guidance: `docs/troubleshooting.md`
+- Flash‑attn vs SDPA, processor mismatches, and reproducibility: `docs/troubleshooting.md` (sections: Upstream revision requires flash‑attn; Processor/AutoProcessor mismatch)
+
+## Contributing Workflow (Branches)
+
+- `main`: stable for users; docs and code tested against a pinned MiniCPM‑V revision noted in commits/PRs. Prefer this branch for demos and day‑to‑day runs.
+- `edge` (or `dev`): tracks latest upstream model code; used to validate changes against the newest snapshots. Expect occasional breakage and quick fixes.
+
+Recommended practice
+
+- When developing features: iterate on `edge` against the latest model; if issues arise (e.g., flash‑attn hard‑requirement), fall back to `main` and continue using the pinned snapshot.
+- When cutting a stable point: merge fixes to `main` and update docs with the verified `--model-revision` SHA.
+
+See `docs/roadmap.md` for current obstacles and planned work to support the latest snapshots by default.
 
 ## Development Notes
 

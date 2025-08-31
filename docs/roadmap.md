@@ -1,37 +1,49 @@
-# Roadmap & Ideas
+# Roadmap
 
-This page collects near‑term ideas, experiments, and reminders.
+This project integrates MiniCPM‑V 4.5 via `trust_remote_code=True`. Upstream changes can alter runtime behavior; this file tracks obstacles and planned work.
 
-## Reproducibility: pin model revision
+## Current Obstacles (as of 2025‑08)
 
-- Problem: Hugging Face model code can update between runs when `trust_remote_code=True` is used.
-- Current: Use `--model-revision <commit-or-tag>` to pin `openbmb/MiniCPM-V-4_5`.
-- Decision/TODO: Once we settle on a stable setup, choose and document a specific revision to pin for repeatable results.
-- Notes: Pinning prevents surprise downloads of updated Python files from the model repo.
+- FlashAttention hard requirement in newer snapshots
+  - Symptom: import‑time errors like: "This modeling file requires ... flash_attn" even when using `--attn sdpa`.
+  - Impact: blocks runs without a matching `flash-attn` wheel for your Torch/CUDA.
+  - Status: Workaround in place — use `--model-revision <sha>` plus offline env vars for reproducible runs.
 
-## Profiles (presets)
+- Processor/AutoProcessor mismatch
+  - Symptom: `Unrecognized processing class ...` or `MiniCPMVTokenizerFast has no attribute image_processor`.
+  - Cause: some snapshots need a custom Processor; `AutoProcessor` may return a tokenizer on certain Transformers versions.
+  - Status: Fixed — model wrapper now constructs `MiniCPMVProcessor` dynamically and passes it to `model.chat`.
 
-- Goal: Quick presets for different workflows (e.g., dev vs full scan) without lengthy flags.
-- Dev profile (proposal): keeps runs fast and interruptible while developing.
-  - Example defaults: `--fps 2`, `--max-frames 32–64`, `--image-size 448`, `--attn sdpa`, `--dtype float16`, `--no-preload-model`.
-  - Optional: smaller `--batch-size` for responsiveness during fallbacks.
-- Full/Thorough profile (proposal): higher coverage for final passes.
-  - Example tweaks: `--fps 4–6`, optional `--packing 2–4`, raise `--max-frames`, consider `--max-slice-nums 2` on high‑res.
-- Implementation options:
-  - Simple: env var `LD_PROFILE=dev` that expands to a predefined arg string.
-  - Config file: `profiles.toml` with named presets.
-  - CLI: `lightning-detector scan --profile dev`.
+- Environment drift (Conda vs venv; Transformers too old)
+  - Symptom: `cannot import name 'Qwen3Config'`.
+  - Status: Documented — ensure `transformers>=4.47,<5` inside the venv and run via `.venv/bin/python -m lightning_detector.cli`.
 
-## Always‑microbatch mode (not implemented)
+## Near‑Term Plan
 
-- Idea: Process frames in fixed microbatches to improve responsiveness and allow clean interrupts between batches.
-- Trade‑offs:
-  - Pros: better progress feedback, faster Ctrl‑C handling, isolates bad frames early.
-  - Cons: more `model.chat` calls; may reduce peak GPU utilization. Expected throughput impact depends on microbatch size and I/O — ballpark 5–20% slower at small batch sizes.
-- Next steps: add a flag (e.g., `--always-microbatch` with `--batch-size N`) and benchmark across typical clips.
+- Add an optional config for default model revision
+  - So users don’t need to pass `--model-revision` every run.
+  - Respect env var `MINICPM_REVISION` if set.
 
-## Misc ideas
+- Improve flash‑attn detection and guidance
+  - At startup, check for `flash-attn` and print clear install vs. fallback advice based on Torch/CUDA.
+  - Add a CLI flag `--attn flash_attention_2` shortcut that fails fast if wheel is missing.
 
-- Add `--profile` help section in `docs/cli.md` once profiles land.
-- Option to write a short per‑video CSV alongside JSON for quick grepping.
-- Optional per‑batch progress prints (behind a verbose flag) when always‑microbatching is enabled.
+- Snapshot compatibility matrix
+  - Track known‑good SHAs and notes (processor behavior, attention backend, performance changes).
+
+## Medium‑Term Plan
+
+- Optional `flash-attn` support path
+  - Provide a documented script to install matching wheels when available; otherwise, advise staying on SDPA with pinned snapshots.
+
+- CI smoke checks for both branches
+  - `main`: run offline against pinned revision.
+  - `edge`: run online to surface upstream changes quickly.
+
+## Branching Strategy
+
+- `main` (stable): targets a pinned snapshot; changes must keep the stable workflow working.
+- `edge` (latest): tracks upstream; breakages are acceptable short‑term while fixes land.
+
+We’ll merge from `edge` to `main` once the latest snapshot is validated or when the wrapper gains the needed compatibility shims.
+

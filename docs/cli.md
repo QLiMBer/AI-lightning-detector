@@ -6,6 +6,10 @@ See also: `docs/user-guide.md` for day‑to‑day recipes and outputs.
 
 - `lightning-detector scan`: scan a directory of `.mp4` files and write per‑video reports.
 
+Note (temporary): until an `edge` branch is maintained against the latest upstream model, prefer pinning a known‑good model revision for stability, e.g.:
+
+- `lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1`
+
 ## Options (common first)
 
 - `--input DIR`: directory with `.mp4` files to analyze. Default: `videos/`.
@@ -43,14 +47,14 @@ See also: `docs/user-guide.md` for day‑to‑day recipes and outputs.
 
 For more scenarios and explanations, see `docs/user-guide.md`.
 
-## Examples
+## Examples (pinned for stability)
 
-- Minimal, fast smoke (no flags needed):
-  - `lightning-detector scan`
+- Minimal, fast smoke:
+  - `lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1`
 - Slightly more coverage:
-  - `lightning-detector scan --fps 3 --max-frames 48`
+  - `lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1 --fps 3 --max-frames 48`
 - Longer clips, more coverage:
-  - `lightning-detector scan --fps 3 --packing 3 --max-frames 48 --max-slice-nums 2`
+  - `lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1 --fps 3 --packing 3 --max-frames 48 --max-slice-nums 2`
 
 ## Generated Help (sync via scripts/sync_cli_help.py)
 

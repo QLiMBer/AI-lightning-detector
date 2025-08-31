@@ -6,21 +6,21 @@ This guide covers day‑to‑day usage, common recipes, outputs, and practical t
 
 - Activate the virtualenv in each new shell:
   - `source .venv/bin/activate`
-- Run a scan (defaults tuned for common cases):
-  - `lightning-detector scan`
+- Run a scan (temporarily pinned to the last known‑good model revision):
+  - `lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1`
 - Without activation, use the full path:
-  - `.venv/bin/lightning-detector scan`
+  - `.venv/bin/lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1`
 
 ## Common Recipes
 
 - More coverage (slightly slower):
-  - `lightning-detector scan --fps 3`
+  - `lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1 --fps 3`
 - Long clips on limited VRAM: temporal packing + slice images:
-  - `lightning-detector scan --packing 3 --max-slice-nums 2`
+  - `lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1 --packing 3 --max-slice-nums 2`
 - Cap runtime on very long videos (0 = unlimited):
-  - `lightning-detector scan --max-frames 64`
+  - `lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1 --max-frames 64`
 - Stable shapes to avoid size mismatches (default = 448):
-  - `lightning-detector scan --image-size 448`
+  - `lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1 --image-size 448`
 - Reproducibility: pin model code revision from Hugging Face:
   - `lightning-detector scan --model-revision <commit-or-tag>`
   - For PoCs, consider forcing offline to avoid surprise upstream changes:

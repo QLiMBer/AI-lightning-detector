@@ -13,8 +13,8 @@ Local CLI to detect lightning flashes in `.mp4` videos using MiniCPM‑V 4.5.
 - Editable install (for local changes):
   - `uv pip install --prefix .venv -e .`
 - Put one or more `.mp4` files into `videos/`
-- Run a minimal scan (defaults tuned for common cases):
-  - `lightning-detector scan`
+- Run a minimal scan (pinned to a working model revision for stability right now):
+  - `lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1`
   - Common tweaks:
     - Increase coverage: `--fps 3`
     - Control runtime/VRAM on long clips: `--packing 3 --max-slice-nums 2`
@@ -50,10 +50,10 @@ Notes
 
 - Activate the environment (each new shell):
   - `source .venv/bin/activate`
-- Run the detector:
-  - `lightning-detector scan` (add flags as needed)
+- Run the detector (temporarily pinned to the working snapshot):
+  - `lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1` (add flags as needed)
 - Without activating the venv, you can still run via full path:
-  - `.venv/bin/lightning-detector scan`
+  - `.venv/bin/lightning-detector scan --model-revision a8dd5db4715809f904dbf39c2a98a6112033f0f1`
 
 ## About `uv pip install --prefix .venv -e .`
 

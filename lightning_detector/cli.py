@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional
 import time
+import warnings
+import logging
 
 from .json_utils import parse_detection_json, to_pretty_json
 from .model import MiniCPMWrapper, ModelConfig
@@ -70,7 +72,35 @@ def update_index(report_dir: Path) -> None:
     write_text(report_dir / "index.txt", "\n".join(items) + ("\n" if items else ""))
 
 
+def write_results_summary(report_dir: Path, summaries: List[str]) -> None:
+    write_text(report_dir / "results.txt", "\n".join(summaries) + ("\n" if summaries else ""))
+
+
+# simple color helper (ANSI); disabled via --no-color
+def colorize(s: str, color: str, enable: bool = True) -> str:
+    if not enable:
+        return s
+    codes = {
+        "reset": "\033[0m",
+        "bold": "\033[1m",
+        "cyan": "\033[36m",
+        "magenta": "\033[35m",
+        "yellow": "\033[33m",
+        "green": "\033[32m",
+    }
+    return f"{codes.get(color, '')}{s}{codes['reset']}"
+
+
 def cmd_scan(args: argparse.Namespace) -> int:
+    # Reduce noisy library output if requested and silence known deprecations
+    if getattr(args, "quiet", False):
+        logging.getLogger("transformers").setLevel(logging.ERROR)
+    warnings.filterwarnings(
+        "ignore",
+        category=FutureWarning,
+        module=r"transformers\..*",
+    )
+
     input_dir = Path(args.input)
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -155,7 +185,12 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 print("Initializing model lazily…", flush=True)
                 model = MiniCPMWrapper(ModelConfig(attn_impl=args.attn, torch_dtype=args.dtype))
             print(
-                f"Processing: {vid.name} | frames={len(frames)} | method={method} | attn={args.attn} | dtype={args.dtype}",
+                colorize(
+                    f"Processing: {vid.name}",
+                    "cyan",
+                    enable=not args.no_color,
+                )
+                + f" | frames={len(frames)} | method={method} | attn={args.attn} | dtype={args.dtype}",
                 flush=True,
             )
             t0 = time.perf_counter()
@@ -167,7 +202,11 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 temporal_ids=temporal_ids,
             )
             dt = time.perf_counter() - t0
-            print(f"Finished: {vid.name} in {dt:.1f}s", flush=True)
+            print(
+                colorize(f"Finished: {vid.name}", "green", enable=not args.no_color)
+                + f" in {dt:.1f}s",
+                flush=True,
+            )
         except Exception as e:
             # Emit a clearer console note on first failure
             if "flash_attn_required" in str(e):
@@ -191,10 +230,72 @@ def cmd_scan(args: argparse.Namespace) -> int:
         write_json(json_path, data)
         write_text(txt_path, raw_text.strip() + "\n")
 
+        # console summary of detections
+        dets = data.get("detections", []) if isinstance(data, dict) else []
+        n_dets = len(dets) if isinstance(dets, list) else 0
+        if n_dets > 0:
+            # sort by confidence desc when available
+            try:
+                dets_sorted = sorted(
+                    [d for d in dets if isinstance(d, dict)],
+                    key=lambda d: float(d.get("confidence", 0.0)),
+                    reverse=True,
+                )
+            except Exception:
+                dets_sorted = [d for d in dets if isinstance(d, dict)]
+            top = dets_sorted[:3]
+            print(
+                colorize("Detections:", "yellow", enable=not args.no_color),
+                *[
+                    f"{d.get('start_sec', '?'):.2f}-{d.get('end_sec', '?'):.2f}s"
+                    f" conf={d.get('confidence', '?'):.2f}"
+                    for d in top
+                    if isinstance(d.get("start_sec", None), (int, float))
+                    and isinstance(d.get("end_sec", None), (int, float))
+                ],
+            )
+        else:
+            print(colorize("No detections", "magenta", enable=not args.no_color))
+
         print(f"Wrote {json_path} and {txt_path}")
 
+    # Write aggregated summaries
     update_index(output_dir)
+    # Build a human-friendly results.txt with top detections per file
+    summaries: List[str] = []
+    for p in sorted(output_dir.glob("*.json")):
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            dets = data.get("detections", [])
+            if not isinstance(dets, list):
+                raise ValueError("bad detections")
+            n = len(dets)
+            line = f"{p.stem}.mp4: {n} detection(s)"
+            if n:
+                try:
+                    dets_sorted = sorted(
+                        [d for d in dets if isinstance(d, dict)],
+                        key=lambda d: float(d.get("confidence", 0.0)),
+                        reverse=True,
+                    )
+                except Exception:
+                    dets_sorted = [d for d in dets if isinstance(d, dict)]
+                top = dets_sorted[:3]
+                parts = []
+                for d in top:
+                    s = d.get("start_sec")
+                    e = d.get("end_sec")
+                    c = d.get("confidence")
+                    if isinstance(s, (int, float)) and isinstance(e, (int, float)) and isinstance(c, (int, float)):
+                        parts.append(f"{s:.2f}-{e:.2f}s({c:.2f})")
+                if parts:
+                    line += " | top: " + ", ".join(parts)
+            summaries.append(line)
+        except Exception:
+            summaries.append(f"{p.stem}.mp4: (unreadable)")
+    write_results_summary(output_dir, summaries)
     print(f"Updated index: {output_dir / 'index.txt'}")
+    print(f"Wrote summary: {output_dir / 'results.txt'}")
     return 0
 
 
@@ -276,6 +377,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-preload-model",
         action="store_true",
         help="Skip upfront model load; initialize lazily before first video",
+    )
+    grp_adv.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable ANSI colors in console output",
+    )
+    grp_adv.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Reduce library noise (transformers logs, deprecation warnings)",
     )
     scan.set_defaults(func=cmd_scan)
 

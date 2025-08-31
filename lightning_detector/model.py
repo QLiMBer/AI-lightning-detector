@@ -25,12 +25,16 @@ class MiniCPMWrapper:
         self.cfg = cfg or ModelConfig()
         torch_mod = __import__("torch")
         try:
-            self.model = AutoModel.from_pretrained(
-                self.cfg.model_id,
-                trust_remote_code=True,
-                attn_implementation=self.cfg.attn_impl,
-                torch_dtype=getattr(torch_mod, self.cfg.torch_dtype),
-            ).eval().cuda()
+            self.model = (
+                AutoModel.from_pretrained(
+                    self.cfg.model_id,
+                    trust_remote_code=True,
+                    attn_implementation=self.cfg.attn_impl,
+                    dtype=getattr(torch_mod, self.cfg.torch_dtype),
+                )
+                .eval()
+                .cuda()
+            )
         except Exception as e:
             msg = str(e)
             if "flash_attn" in msg or "flash-attn" in msg:

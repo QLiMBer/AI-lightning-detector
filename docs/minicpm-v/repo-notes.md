@@ -12,7 +12,7 @@ Key API expectations
 
 Environment details from upstream
 
-- `transformers==4.44.2` recommended for compatibility.
+- Upstream originally cited `transformers==4.44.2`, but MiniCPM‑V remote code now imports `Qwen3Config`; use `transformers>=4.47,<5` in this repo.
 - Attention impl: `sdpa` by default; `flash_attention_2` optional if installed.
 - Video IO: `decord` used in official snippets. PIL (`Pillow`) for images; `SciPy`’s `cKDTree` used to build `temporal_ids` in the 3D‑Resampler example.
 - Model memory: ~18 GB for full MiniCPM‑V 4.5 on GPU (quantized variants exist: int4, AWQ, GGUF).
@@ -22,3 +22,7 @@ Implications for our app
 - We must decode video → frames prior to `model.chat`. `decord` is the recommended lightweight path in upstream code. We’ll follow that for consistency and performance.
 - For long videos, we’ll support temporal packing with `temporal_ids` to keep coverage high while controlling VRAM/time.
 
+Repo‑specific notes
+
+- CLI supports `--no-preload-model` to skip upfront load and initialize lazily per video. This helps surface download/progress and avoid cache lock stalls.
+- Our model loader uses `dtype=…` (new API) instead of deprecated `torch_dtype`.

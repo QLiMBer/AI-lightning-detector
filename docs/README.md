@@ -7,9 +7,11 @@ Docs Index
 - Lightning Detector Plan: `docs/plan.md`
 - Open Questions: `docs/open-questions.md`
 - References: `docs/references.md`
+ - Troubleshooting & First‑Run Notes: `docs/troubleshooting.md`
 
 Utilities
 
 - Inspect video metadata: `scripts/inspect_videos.py` (prints fps, resolution, frames, duration for all `.mp4` in `videos/`)
 - Session Restart Checklist: `docs/restart.md`
 - Next Steps: `docs/next-steps.md`
+ - Minimal model smoke test: `scripts/smoke_chat.py`

@@ -1,4 +1,4 @@
-transformers==4.44.2
+transformers<5,>=4.47
 pillow>=10.0.0
 numpy>=2.0.0
 scipy>=1.11.0

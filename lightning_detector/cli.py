@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 from typing import Dict, List, Optional
+import time
 
 from .json_utils import parse_detection_json, to_pretty_json
 from .model import MiniCPMWrapper, ModelConfig
@@ -80,16 +81,19 @@ def cmd_scan(args: argparse.Namespace) -> int:
         return 0
 
     # Preload model once to fail fast and trigger weight download
-    try:
-        model = MiniCPMWrapper(ModelConfig(attn_impl=args.attn, torch_dtype=args.dtype))
-    except Exception as e:
-        if "flash_attn_required" in str(e):
-            print(
-                "Model requested flash-attn. Install 'flash-attn' or try --attn sdpa.\n"
-                "If sdpa still fails, flash-attn wheels may be required for your CUDA."
-            )
-        # still proceed; per-file handling below will write error reports
-        model = None
+    model = None
+    if not getattr(args, "no_preload_model", False):
+        try:
+            print("Preloading model (to validate env / trigger weights download)…")
+            model = MiniCPMWrapper(ModelConfig(attn_impl=args.attn, torch_dtype=args.dtype))
+        except Exception as e:
+            if "flash_attn_required" in str(e):
+                print(
+                    "Model requested flash-attn. Install 'flash-attn' or try --attn sdpa.\n"
+                    "If sdpa still fails, flash-attn wheels may be required for your CUDA."
+                )
+            # still proceed; per-file handling below will write error reports
+            model = None
 
     for vid in files:
         meta = inspect_video(vid)
@@ -123,6 +127,10 @@ def cmd_scan(args: argparse.Namespace) -> int:
             if model is None:
                 # last-chance lazy init if preload failed
                 model = MiniCPMWrapper(ModelConfig(attn_impl=args.attn, torch_dtype=args.dtype))
+            print(
+                f"Processing: {vid.name} | frames={len(frames)} | method={method} | attn={args.attn} | dtype={args.dtype}"
+            )
+            t0 = time.perf_counter()
             raw_text = model.chat(
                 frames=frames,
                 prompt=prompt,
@@ -130,6 +138,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 enable_thinking=bool(args.thinking),
                 temporal_ids=temporal_ids,
             )
+            dt = time.perf_counter() - t0
+            print(f"Finished: {vid.name} in {dt:.1f}s")
         except Exception as e:
             # Emit a clearer console note on first failure
             if "flash_attn_required" in str(e):
@@ -179,6 +189,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--attn", choices=["sdpa", "flash_attention_2", "eager"], default="sdpa", help="Attention backend (default: sdpa)")
     scan.add_argument("--dtype", choices=["bfloat16", "float16", "float32"], default="bfloat16", help="Torch dtype (default: bfloat16)")
     scan.add_argument("--thinking", action="store_true", help="Enable deep thinking mode")
+    scan.add_argument("--no-preload-model", action="store_true", help="Skip upfront model load; initialize lazily per file")
     scan.set_defaults(func=cmd_scan)
 
     return p

@@ -14,7 +14,7 @@ Use this to quickly resume work in a fresh session and/or after creating the Git
   - `git add .`
   - `git commit -m "chore: initialize docs and uv project"`
   - `git branch -M main`
-  - `git remote add origin git@github.com:<your-user-or-org>/lightning-detector.git`
+- `git remote add origin git@github.com:<your-user-or-org>/lightning-detector.git`
   - `git push -u origin main`
 
 Notes:
@@ -46,6 +46,13 @@ Notes:
   - Confirms fps/resolution/duration are read correctly.
 - Optional: pull a quick MiniCPM‑V 4.5 image/video test from `docs/minicpm-v/usage-video.md` once we implement the CLI.
 
+Troubleshooting first run (model downloads)
+
+- If you see `cannot import name 'Qwen3Config'`: upgrade to `transformers>=4.47,<5` and re‑sync.
+- To force a clean download and avoid global cache issues, run the CLI with a repo‑local cache and skip preload:
+  - `HF_HOME=.hf-cache TRANSFORMERS_CACHE=.hf-cache/hub lightning-detector scan --input videos --output reports --fps 1 --max-frames 16 --max-slice-nums 1 --attn sdpa --dtype float16 --no-preload-model`
+- Avoid suspending runs (Ctrl‑Z). If you did, clean them up: `jobs -l` then `kill -TERM %<id>`.
+
 5) Folder expectations
 
 - Input videos: `videos/`
@@ -56,4 +63,3 @@ Notes:
 - Tell me when the repo is created and pushed (SSH remote), and that uv sync + torch install are done. Example message:
   - “Repo is up, SSH remote configured, env synced, torch CUDA 12.4 installed. Proceed to implement the CLI.”
 - I’ll then scaffold the CLI and implement the baseline lightning detection pipeline per `docs/plan.md`.
-

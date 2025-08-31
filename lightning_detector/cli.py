@@ -119,6 +119,74 @@ def cmd_scan(args: argparse.Namespace) -> int:
     )
     print(colorize(banner, "bold", enable=not getattr(args, "no_color", False)))
 
+    def safe_chat(frames: List, prompt: str, temporal_ids: Optional[List[List[int]]]) -> str:
+        """Run model.chat with robust fallbacks on tensor size mismatches.
+
+        Strategy:
+        1) Try single call with given frames/temporal_ids
+        2) On size-mismatch: microbatch sequentially with small batches (temporal_ids disabled)
+        3) On per-batch failure: fall back to single-frame calls for that batch
+
+        Returns concatenated JSON-like text; we later parse+merge detections.
+        """
+        def is_size_mismatch(exc: Exception) -> bool:
+            return "Sizes of tensors must match" in str(exc)
+
+        # 1) Initial attempt
+        try:
+            return model.chat(
+                frames=frames,
+                prompt=prompt,
+                max_slice_nums=args.max_slice_nums,
+                enable_thinking=bool(args.thinking),
+                temporal_ids=temporal_ids,
+            )
+        except Exception as e:
+            if not is_size_mismatch(e):
+                raise
+
+        # 2) Microbatch fallback
+        mb = max(1, int(getattr(args, "batch_size", 16)))
+        merged: Dict[str, List[Dict]] = {"detections": [], "non_lightning_events": []}
+        for i in range(0, len(frames), mb):
+            chunk = frames[i : i + mb]
+            try:
+                text = model.chat(
+                    frames=chunk,
+                    prompt=prompt,
+                    max_slice_nums=1,
+                    enable_thinking=False,
+                    temporal_ids=None,
+                )
+                data = parse_detection_json(text)
+            except Exception as e2:
+                # 3) Single-frame fallback
+                data = {"detections": [], "non_lightning_events": []}
+                for f in chunk:
+                    try:
+                        text1 = model.chat(
+                            frames=[f],
+                            prompt=prompt,
+                            max_slice_nums=1,
+                            enable_thinking=False,
+                            temporal_ids=None,
+                        )
+                        d1 = parse_detection_json(text1)
+                        if isinstance(d1.get("detections"), list):
+                            merged["detections"].extend(d1["detections"])  # type: ignore[arg-type]
+                        if isinstance(d1.get("non_lightning_events"), list):
+                            merged["non_lightning_events"].extend(d1["non_lightning_events"])  # type: ignore[arg-type]
+                    except Exception:
+                        continue
+                continue
+
+            if isinstance(data.get("detections"), list):
+                merged["detections"].extend(data["detections"])  # type: ignore[arg-type]
+            if isinstance(data.get("non_lightning_events"), list):
+                merged["non_lightning_events"].extend(data["non_lightning_events"])  # type: ignore[arg-type]
+
+        return to_pretty_json(merged)
+
     # Preload model once to fail fast and trigger weight download
     model = None
     if not getattr(args, "no_preload_model", False):
@@ -201,13 +269,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 model = MiniCPMWrapper(ModelConfig(attn_impl=args.attn, torch_dtype=args.dtype))
             # Processing begins (filename already printed above)
             t0 = time.perf_counter()
-            raw_text = model.chat(
-                frames=frames,
-                prompt=prompt,
-                max_slice_nums=args.max_slice_nums,
-                enable_thinking=bool(args.thinking),
-                temporal_ids=temporal_ids,
-            )
+            raw_text = safe_chat(frames=frames, prompt=prompt, temporal_ids=temporal_ids)
             dt = time.perf_counter() - t0
             last_dt = dt
         except Exception as e:
@@ -432,6 +494,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-resize",
         action="store_true",
         help="Do not resize frames; may cause tensor size mismatch on some videos",
+    )
+    grp_adv.add_argument(
+        "--batch-size",
+        type=int,
+        default=16,
+        help="Microbatch size for robust fallback when size mismatches occur",
     )
     grp_adv.add_argument(
         "--no-color",

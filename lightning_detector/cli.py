@@ -263,7 +263,11 @@ def cmd_scan(args: argparse.Namespace) -> int:
         # Build single-line result summary
         dets = data.get("detections", []) if isinstance(data, dict) else []
         n_dets = len(dets) if isinstance(dets, list) else 0
-        summary = " — No detections"
+        if not args.no_color:
+            no_det = colorize(" — No detections", "magenta", enable=True)
+        else:
+            no_det = " — No detections"
+        summary = no_det
         if n_dets > 0:
             try:
                 dets_sorted = sorted(
@@ -282,7 +286,12 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 if isinstance(s, (int, float)) and isinstance(e, (int, float)) and isinstance(c, (int, float)):
                     parts.append(f"{s:.2f}-{e:.2f}s({c:.2f})")
             if parts:
-                summary = " — top: " + ", ".join(parts)
+                summary_text = " — top: " + ", ".join(parts)
+                summary = (
+                    colorize(summary_text, "yellow", enable=not args.no_color)
+                    if not args.no_color
+                    else summary_text
+                )
 
         # Print finished line once with summary (if we had a successful dt)
         if 'last_dt' in locals():

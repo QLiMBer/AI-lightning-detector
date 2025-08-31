@@ -67,7 +67,8 @@ def sample_frames_uniform(
     # approximate stride based on desired FPS, then cap to max_frames uniformly
     stride = max(1, round(native_fps / max(1, choose_fps)))
     idx = list(range(0, n_total, stride))
-    if len(idx) > max_frames:
+    # If max_frames <= 0, treat as unlimited (no further cap)
+    if max_frames > 0 and len(idx) > max_frames:
         idx = _uniform_indices(len(idx), max_frames)
         # map back to original indices spacing
         idx = [int(i * stride) for i in idx]
@@ -101,6 +102,10 @@ def sample_frames_with_temporal_ids(
     if fps <= 0 or n_total <= 0:
         return [], []
     duration = n_total / fps
+
+    # Interpret non-positive cap as "unlimited" for this heuristic
+    if max_frames_after_packing <= 0:
+        max_frames_after_packing = 10**9
 
     # decide packing and number of frames to choose
     if choose_fps * int(duration) <= max_frames_after_packing:

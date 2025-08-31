@@ -16,8 +16,9 @@ Local CLI to detect lightning flashes in `.mp4` videos using MiniCPM‑V 4.5.
 - Run a minimal scan (defaults tuned for common cases):
   - `lightning-detector scan`
   - Common tweaks:
-    - `--fps 3 --max-frames 48`
-    - `--packing 3 --max-slice-nums 2`
+    - Increase coverage: `--fps 3`
+    - Control runtime/VRAM on long clips: `--packing 3 --max-slice-nums 2`
+    - Cap frames (0 = unlimited): `--max-frames 64`
 
 Outputs are written to `reports/` (`<name>.json`, `<name>.txt`, `index.txt`).
 

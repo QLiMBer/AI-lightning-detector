@@ -242,7 +242,10 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     grp_common.add_argument(
-        "--max-frames", type=int, default=32, help="Cap frames per video after sampling/packing"
+        "--max-frames",
+        type=int,
+        default=0,
+        help="Cap frames per video after sampling/packing (0 = unlimited; use with care for long videos)",
     )
     grp_common.add_argument(
         "--max-slice-nums",

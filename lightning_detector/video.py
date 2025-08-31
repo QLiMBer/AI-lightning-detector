@@ -7,7 +7,10 @@ from typing import Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 from PIL import Image
-from decord import VideoReader, cpu
+"""
+Video utilities. We import decord lazily inside functions to avoid potential
+CUDA/driver symbol clashes when used alongside large GPU models.
+"""
 
 
 @dataclass
@@ -25,6 +28,7 @@ def list_mp4_files(root: Path) -> List[Path]:
 
 
 def inspect_video(path: Path) -> VideoMeta:
+    from decord import VideoReader, cpu  # lazy import
     vr = VideoReader(str(path), ctx=cpu(0))
     fps = float(vr.get_avg_fps()) or 0.0
     n_frames = int(len(vr))
@@ -53,6 +57,7 @@ def sample_frames_uniform(
 
     Returns tuple: (frames_as_PIL, timestamps_in_seconds)
     """
+    from decord import VideoReader, cpu  # lazy import
     vr = VideoReader(str(path), ctx=cpu(0))
     native_fps = float(vr.get_avg_fps()) or 0.0
     n_total = int(len(vr))
@@ -89,6 +94,7 @@ def sample_frames_with_temporal_ids(
 
     TIME_SCALE = 0.1  # seconds
 
+    from decord import VideoReader, cpu  # lazy import
     vr = VideoReader(str(path), ctx=cpu(0))
     fps = float(vr.get_avg_fps()) or 0.0
     n_total = int(len(vr))
@@ -128,4 +134,3 @@ def sample_frames_with_temporal_ids(
         temporal_ids.append(list(ts_ids[i : i + packing]))
 
     return frames, temporal_ids
-

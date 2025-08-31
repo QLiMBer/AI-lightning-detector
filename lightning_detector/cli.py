@@ -77,8 +77,9 @@ def cmd_scan(args: argparse.Namespace) -> int:
 
     files = list_mp4_files(input_dir)
     if not files:
-        print(f"No .mp4 files found in {input_dir}")
+        print(f"No .mp4 files found in {input_dir}", flush=True)
         return 0
+    print(f"Discovered {len(files)} .mp4 file(s) under {input_dir}", flush=True)
 
     # Preload model once to fail fast and trigger weight download
     model = None
@@ -96,7 +97,27 @@ def cmd_scan(args: argparse.Namespace) -> int:
             model = None
 
     for vid in files:
+        # Initialize model first to avoid potential CUDA/lib conflicts with decord
+        if model is None:
+            try:
+                print("Initializing model lazily for first video…", flush=True)
+                model = MiniCPMWrapper(ModelConfig(attn_impl=args.attn, torch_dtype=args.dtype))
+            except Exception as e:
+                if "flash_attn_required" in str(e):
+                    print(
+                        "Model requested flash-attn. Install 'flash-attn' or try --attn sdpa.\n"
+                        "If sdpa still fails, flash-attn wheels may be required for your CUDA."
+                    )
+                print(f"Model initialization failed: {e}", flush=True)
+                # continue with error report for this file
+                model = None
+
+        print(f"Inspecting: {vid.name}", flush=True)
         meta = inspect_video(vid)
+        print(
+            f"Meta: {meta.width}x{meta.height} @ {meta.fps:.2f}fps, frames={meta.frames}, duration={meta.duration_sec:.1f}s",
+            flush=True,
+        )
         method = "uniform" if args.packing == 0 else "temporal_packing"
 
         if args.packing == 0:
@@ -104,6 +125,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 vid, choose_fps=args.fps, max_frames=args.max_frames
             )
             temporal_ids = None
+            print(f"Sampled {len(frames)} frame(s) uniformly", flush=True)
         else:
             frames, temporal_ids = sample_frames_with_temporal_ids(
                 vid,
@@ -113,6 +135,10 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 force_packing=args.packing,
             )
             timestamps = []  # not used in packed mode
+            print(
+                f"Sampled {len(frames)} frame(s) with packing; groups={len(temporal_ids)}",
+                flush=True,
+            )
 
         prompt = build_prompt_json(
             {
@@ -126,9 +152,11 @@ def cmd_scan(args: argparse.Namespace) -> int:
         try:
             if model is None:
                 # last-chance lazy init if preload failed
+                print("Initializing model lazily…", flush=True)
                 model = MiniCPMWrapper(ModelConfig(attn_impl=args.attn, torch_dtype=args.dtype))
             print(
-                f"Processing: {vid.name} | frames={len(frames)} | method={method} | attn={args.attn} | dtype={args.dtype}"
+                f"Processing: {vid.name} | frames={len(frames)} | method={method} | attn={args.attn} | dtype={args.dtype}",
+                flush=True,
             )
             t0 = time.perf_counter()
             raw_text = model.chat(
@@ -139,7 +167,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 temporal_ids=temporal_ids,
             )
             dt = time.perf_counter() - t0
-            print(f"Finished: {vid.name} in {dt:.1f}s")
+            print(f"Finished: {vid.name} in {dt:.1f}s", flush=True)
         except Exception as e:
             # Emit a clearer console note on first failure
             if "flash_attn_required" in str(e):

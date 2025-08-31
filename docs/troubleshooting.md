@@ -20,6 +20,13 @@ Common issues and fixes
     - `HF_HOME=.hf-cache TRANSFORMERS_CACHE=.hf-cache/hub HF_HUB_ENABLE_HF_TRANSFER=1 lightning-detector scan --input videos --output reports --fps 1 --max-frames 16 --max-slice-nums 1 --attn sdpa --dtype float16 --no-preload-model`
   - Remove stale locks if any: `find .hf-cache -name '*.lock' -delete` (ensure no runs are active).
 
+- Segmentation fault during GPU move (e.g., after "Moving model to CUDA…")
+  - Install Accelerate and use automatic placement: `uv pip install --prefix .venv accelerate`
+  - Use safer loader flags (already in this repo): `device_map='auto'`, `low_cpu_mem_usage=True`, `offload_folder='.offload'`
+  - Initialize the model before importing/using `decord` (the CLI does this now)
+  - Prefer `--dtype float16` if BF16 is unstable on your GPU/driver
+  - Set allocator: `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`
+
 - CUDA OOM or very slow runs
   - Lower `--fps`, lower `--max-frames`, increase `--max-slice-nums`, or enable `--packing` for long videos.
 
@@ -27,4 +34,3 @@ Observability tips
 
 - Watch GPU: `watch -n1 nvidia-smi` (expect non‑zero util during chat)
 - CLI prints per‑video progress: `Processing … | frames=… | method=…` and `Finished … in Xs`
-

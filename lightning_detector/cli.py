@@ -192,7 +192,13 @@ def cmd_scan(args: argparse.Namespace) -> int:
     if not getattr(args, "no_preload_model", False):
         try:
             print("Preloading model (to validate env / trigger weights download)…")
-            model = MiniCPMWrapper(ModelConfig(attn_impl=args.attn, torch_dtype=args.dtype))
+            model = MiniCPMWrapper(
+                ModelConfig(
+                    attn_impl=args.attn,
+                    torch_dtype=args.dtype,
+                    revision=(args.model_revision or None),
+                )
+            )
         except Exception as e:
             if "flash_attn_required" in str(e):
                 print(
@@ -207,7 +213,13 @@ def cmd_scan(args: argparse.Namespace) -> int:
         if model is None:
             try:
                 print("Initializing model lazily for first video…", flush=True)
-                model = MiniCPMWrapper(ModelConfig(attn_impl=args.attn, torch_dtype=args.dtype))
+                model = MiniCPMWrapper(
+                    ModelConfig(
+                        attn_impl=args.attn,
+                        torch_dtype=args.dtype,
+                        revision=(args.model_revision or None),
+                    )
+                )
             except Exception as e:
                 if "flash_attn_required" in str(e):
                     print(
@@ -266,7 +278,13 @@ def cmd_scan(args: argparse.Namespace) -> int:
             if model is None:
                 # last-chance lazy init if preload failed
                 print("Initializing model lazily…", flush=True)
-                model = MiniCPMWrapper(ModelConfig(attn_impl=args.attn, torch_dtype=args.dtype))
+                model = MiniCPMWrapper(
+                    ModelConfig(
+                        attn_impl=args.attn,
+                        torch_dtype=args.dtype,
+                        revision=(args.model_revision or None),
+                    )
+                )
             # Processing begins (filename already printed above)
             t0 = time.perf_counter()
             raw_text = safe_chat(frames=frames, prompt=prompt, temporal_ids=temporal_ids)
@@ -408,15 +426,11 @@ def cmd_scan(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="lightning-detector",
-        description="Detect lightning in videos using MiniCPM-V 4.5",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        epilog=(
-            "Typical usage:\n"
-            "  lightning-detector scan\n\n"
-            "Common tweaks:\n"
-            "  lightning-detector scan --fps 2 --max-frames 32\n"
-            "  lightning-detector scan --packing 3 --max-slice-nums 2\n"
+        description=(
+            "Detect lightning in videos using MiniCPM-V 4.5.\n"
+            "Run 'lightning-detector scan --help' for command-specific options."
         ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -459,6 +473,17 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=1,
         help="Split hi-res frames into slices to reduce VRAM (increase if OOM)",
+    )
+
+    grp_model = scan.add_argument_group("Model")
+    grp_model.add_argument(
+        "--model-revision",
+        type=str,
+        default="",
+        help=(
+            "Pin the model repo revision (commit SHA, tag, or branch). "
+            "Improves reproducibility and avoids surprise code updates from Hugging Face."
+        ),
     )
 
     grp_adv = scan.add_argument_group("Advanced")
@@ -512,6 +537,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Reduce library noise (transformers logs, deprecation warnings)",
     )
     scan.set_defaults(func=cmd_scan)
+
+    # Extend top-level --help to include full scan options with defaults for convenience
+    try:
+        scan_help = scan.format_help()
+        # Keep a concise quickstart and then append the scan help
+        p.epilog = (
+            "Typical usage:\n"
+            "  lightning-detector scan\n\n"
+            "All parameters (with defaults):\n\n"
+            f"{scan_help}"
+        )
+    except Exception:
+        # If formatting fails under exotic envs, fall back to a minimal epilog
+        p.epilog = (
+            "Typical usage:\n"
+            "  lightning-detector scan\n\n"
+            "See 'lightning-detector scan --help' for all options."
+        )
 
     return p
 

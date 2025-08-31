@@ -13,9 +13,11 @@
 - `--max-frames INT` (default: 0): hard cap on frames sent to the model per video (after sampling/packing). `0` means unlimited (scan the whole video at the chosen `--fps`). For long videos, consider keeping a cap or enabling `--packing` to control time/VRAM.
 - `--max-slice-nums INT` (default: 1): split hi‑res frames into slices to reduce VRAM use. Increase if you hit OOM (e.g., `2` or `3`).
 - `--attn {sdpa,flash_attention_2,eager}` (default: sdpa): attention backend. `sdpa` uses PyTorch’s scaled dot‑product attention (stable, built‑in). `flash_attention_2` uses custom CUDA kernels for speed but requires an exact‑match wheel for your Torch/CUDA. `eager` is a fallback (slower).
+- `--model-revision STR` (optional, default: unset): pin the Hugging Face repo revision (commit SHA/tag/branch) for `openbmb/MiniCPM-V-4_5`. Pinning avoids surprise code updates and makes runs reproducible.
 - `--dtype {bfloat16,float16,float32}` (default: float16): numeric precision for compute. `float16` (FP16) is compatible on most GPUs and fast. `bfloat16` (BF16) can be more numerically stable on newer GPUs (e.g., Ampere+ with BF16) with similar speed. `float32` is highest precision but slowest and uses most VRAM — helpful for debugging.
 - `--image-size INT` (default: 448): resize frames to a fixed square size before inference to ensure consistent token shapes. 448 works well with the model’s 14‑pixel patch size (32×32 patches).
 - `--no-resize`: disable resizing. Use only if you’re certain all frames produce identical token shapes; otherwise you may hit size mismatch errors.
+- `--batch-size INT` (default: 16): microbatch size used by the CLI’s robust fallback when a tensor size mismatch occurs. Lower this if the fallback still fails; each batch is retried or split into single‑frame calls as needed.
 
 ## Tuning Guide (what the flags mean for detection)
 
@@ -25,7 +27,9 @@
 - Memory control (`--max-slice-nums`): increase to 2–3 if you see CUDA OOM with high‑res frames; it slices images before encoding.
 - Precision (`--dtype`): FP16 is fast and widely compatible; BF16 may be more stable on newer GPUs; FP32 is slow/high‑VRAM and mostly for debugging.
 - Attention backend (`--attn`): `sdpa` is stable and built‑in. `flash_attention_2` can be faster but needs a matching wheel; if unsure, stick to `sdpa`.
+- Reproducibility (`--model-revision`): pin a specific commit or tag once you confirm a working setup to prevent model code updates mid‑project.
 - Input normalization (`--image-size`): resizing to 448×448 ensures all frames produce the same patch grid, avoiding tensor size mismatches.
+- Robust fallback (`--batch-size`): on tensor size mismatch, the CLI automatically retries by microbatching and, if needed, single‑frame calls. Tune the microbatch size via `--batch-size`.
 - `--thinking`: enable deeper reasoning mode (higher latency).
 - `--no-preload-model`: skip upfront model load; the model initializes lazily before the first video. Useful to surface download/progress.
 

@@ -10,6 +10,7 @@ class ModelConfig:
     model_id: str = "openbmb/MiniCPM-V-4_5"
     torch_dtype: str = "bfloat16"
     attn_impl: str = "sdpa"  # or "flash_attention_2" if flash-attn is installed
+    revision: Optional[str] = None  # pin to a specific commit/tag for reproducibility
 
 
 class MiniCPMWrapper:
@@ -40,6 +41,9 @@ class MiniCPMWrapper:
 
             placed = False
             offload_dir = os.path.abspath(os.path.join(os.getcwd(), ".offload"))
+            # optional revision pinning
+            rev_kwargs = {"revision": self.cfg.revision} if self.cfg.revision else {}
+
             try:
                 # Prefer letting HF/Accelerate shard and place weights automatically
                 self.model = AutoModel.from_pretrained(
@@ -50,6 +54,7 @@ class MiniCPMWrapper:
                     device_map="auto",
                     low_cpu_mem_usage=True,
                     offload_folder=offload_dir,
+                    **rev_kwargs,
                 ).eval()
                 placed = True
                 print("[model] Loaded with device_map='auto' (with possible offload)", flush=True)
@@ -60,6 +65,7 @@ class MiniCPMWrapper:
                     trust_remote_code=True,
                     attn_implementation=self.cfg.attn_impl,
                     dtype=want_dtype,
+                    **rev_kwargs,
                 ).eval()
             if not placed:
                 print("[model] Moving model to CUDA…", flush=True)
@@ -76,7 +82,11 @@ class MiniCPMWrapper:
                 ) from e
             raise
         print("[model] Loading tokenizer…", flush=True)
-        self.tokenizer = AutoTokenizer.from_pretrained(self.cfg.model_id, trust_remote_code=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.cfg.model_id,
+            trust_remote_code=True,
+            **rev_kwargs,
+        )
         print("[model] Tokenizer ready.", flush=True)
 
     def chat(

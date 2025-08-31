@@ -16,6 +16,7 @@ Docs Index
 - Deployment Options: `docs/minicpm-v/deployment.md`
 - CLI Reference: `docs/cli.md`
 - Troubleshooting & First‑Run Notes: `docs/troubleshooting.md`
+- Roadmap & Ideas: `docs/roadmap.md`
 - References: `docs/references.md`
 
 Utilities

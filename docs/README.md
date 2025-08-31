@@ -6,6 +6,7 @@ Docs Index
   - `uv pip install --prefix .venv accelerate`
   - `source .venv/bin/activate`
   - `export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`
+  - Editable install for local changes: `uv pip install --prefix .venv -e .`
   - Run: `lightning-detector scan --input videos --output reports --fps 1 --max-frames 8 --max-slice-nums 1 --attn sdpa --dtype float16 --no-preload-model`
   - Optional local cache: prefix with `HF_HOME=.hf-cache TRANSFORMERS_CACHE=.hf-cache/hub`
 

@@ -1,5 +1,7 @@
 Setup — MiniCPM‑V 4.5 (Local)
 
+Note: Developer reference for the underlying model. Typical users can skip this section; use the project README (Quick Start) and User Guide.
+
 - Python: 3.10+ recommended
 - PyTorch: CUDA build matching your driver (RTX 3090; BF16 and/or FP16)
 - Transformers: 4.47–<5 (required for Qwen3Config used by upstream MiniCPM‑V code)

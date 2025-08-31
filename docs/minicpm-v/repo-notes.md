@@ -2,6 +2,8 @@ Upstream Repo Notes — MiniCPM‑V 4.5
 
 Sources parsed
 
+Note: Developer reference for upstream repo notes; typical users can skip this.
+
 - Main README (MiniCPM‑V repo): sections on MiniCPM‑V 4.5, Inference, Multi‑turn Conversation, and “Chat with Video” example showing the 3D‑Resampler usage with `temporal_ids`, and code to extract frames with `decord`.
 - Cookbook README and the recipe: `inference/minicpm-v4_5_video_understanding.md` (simple frame sampling + `model.chat`), which again uses `decord` to turn the `.mp4` into frames before passing them to the model.
 

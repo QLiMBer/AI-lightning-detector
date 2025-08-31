@@ -1,5 +1,7 @@
 Troubleshooting & First‑Run Notes
 
+Scope: issues and fixes. For setup and daily usage, see repository `README.md` (Quick Start) and `docs/user-guide.md`.
+
 Quick sanity checks
 
 - GPU available: `python -c "import torch; print(torch.cuda.is_available())"`

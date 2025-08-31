@@ -1,5 +1,7 @@
 Deployment Options — MiniCPM‑V 4.5
 
+Note: Developer reference for alternative runtimes/serving. Typical users can skip this section; use the project README (Quick Start) and User Guide.
+
 MVP choice (for this project)
 
 - In‑process Transformers (Python) on RTX 3090.
@@ -29,4 +31,3 @@ Quantization options
 Recommended now
 
 - Keep Transformers local for the first version. If/when you want to process many videos concurrently or expose an API, consider vLLM.
-

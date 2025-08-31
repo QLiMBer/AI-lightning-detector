@@ -1,5 +1,7 @@
 # CLI Reference
 
+See also: `docs/user-guide.md` for day‑to‑day recipes and outputs.
+
 ## Command
 
 - `lightning-detector scan`: scan a directory of `.mp4` files and write per‑video reports.
@@ -32,6 +34,14 @@
 - Robust fallback (`--batch-size`): on tensor size mismatch, the CLI automatically retries by microbatching and, if needed, single‑frame calls. Tune the microbatch size via `--batch-size`.
 - `--thinking`: enable deeper reasoning mode (higher latency).
 - `--no-preload-model`: skip upfront model load; the model initializes lazily before the first video. Useful to surface download/progress.
+
+## Quick Recipes
+
+- Faster scan with decent coverage: `--fps 3`
+- Long clips on limited VRAM: `--packing 3 --max-slice-nums 2`
+- Cap runtime on long inputs: `--max-frames 64`
+
+For more scenarios and explanations, see `docs/user-guide.md`.
 
 ## Examples
 

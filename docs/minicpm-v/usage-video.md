@@ -55,6 +55,8 @@ res = model.chat(
 print(res)
 ```
 
+Note: Developer reference for the underlying model usage. Typical users can skip this section; use the project README (Quick Start) and User Guide.
+
 High‑FPS/long video with 3D‑Resampler (temporal packing)
 
 ```python

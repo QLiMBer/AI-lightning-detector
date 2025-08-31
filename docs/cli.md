@@ -16,6 +16,16 @@
 - `--dtype {bfloat16,float16,float32}` (default: float16): numeric precision for compute. `float16` (FP16) is compatible on most GPUs and fast. `bfloat16` (BF16) can be more numerically stable on newer GPUs (e.g., Ampere+ with BF16) with similar speed. `float32` is highest precision but slowest and uses most VRAM — helpful for debugging.
 - `--image-size INT` (default: 448): resize frames to a fixed square size before inference to ensure consistent token shapes. 448 works well with the model’s 14‑pixel patch size (32×32 patches).
 - `--no-resize`: disable resizing. Use only if you’re certain all frames produce identical token shapes; otherwise you may hit size mismatch errors.
+
+## Tuning Guide (what the flags mean for detection)
+
+- Coverage (`--fps`): higher fps samples more moments from the video, improving chances to catch brief lightning flashes, at the cost of time and VRAM. Start at 2–3; raise to 5 for thorough scans.
+- Long videos (`--packing`): packing groups nearby frames so you keep temporal coverage without linearly increasing cost. Try `--packing 3` for multi‑minute clips.
+- Runtime bounds (`--max-frames`): keep as `0` (unlimited) for full coverage. Set a number only to bound runtime on very long inputs.
+- Memory control (`--max-slice-nums`): increase to 2–3 if you see CUDA OOM with high‑res frames; it slices images before encoding.
+- Precision (`--dtype`): FP16 is fast and widely compatible; BF16 may be more stable on newer GPUs; FP32 is slow/high‑VRAM and mostly for debugging.
+- Attention backend (`--attn`): `sdpa` is stable and built‑in. `flash_attention_2` can be faster but needs a matching wheel; if unsure, stick to `sdpa`.
+- Input normalization (`--image-size`): resizing to 448×448 ensures all frames produce the same patch grid, avoiding tensor size mismatches.
 - `--thinking`: enable deeper reasoning mode (higher latency).
 - `--no-preload-model`: skip upfront model load; the model initializes lazily before the first video. Useful to surface download/progress.
 

@@ -4,6 +4,7 @@ Version: 0.1.0
 Summary: Lightning detection with MiniCPM-V 4.5
 Requires-Python: >=3.10
 Requires-Dist: transformers<5,>=4.47
+Requires-Dist: accelerate<2,>=1.0.0
 Requires-Dist: pillow>=10.0.0
 Requires-Dist: numpy>=2.0.0
 Requires-Dist: scipy>=1.11.0

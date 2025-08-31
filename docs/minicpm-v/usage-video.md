@@ -40,7 +40,8 @@ def encode_video(video_path):
     return frames
 
 video_path = 'video.mp4'
-frames = encode_video(video_path)
+# Normalize to fixed size (32x32 patches at 14px = 448) to ensure consistent shapes
+frames = [img.resize((448, 448)) for img in encode_video(video_path)]
 question = 'Describe the video briefly.'
 msgs = [{ 'role': 'user', 'content': frames + [question] }]
 
@@ -109,7 +110,9 @@ def encode_video_with_temporal_ids(video_path, choose_fps=5, force_packing=None)
     temporal_ids = group_array(ts_ids, packing)
     return frames, temporal_ids
 
+# Normalize to fixed size for packed mode as well
 frames, temporal_ids = encode_video_with_temporal_ids('video.mp4', choose_fps=5)
+frames = [img.resize((448, 448)) for img in frames]
 msgs = [{ 'role': 'user', 'content': frames + ['Describe the video briefly.'] }]
 
 res = model.chat(

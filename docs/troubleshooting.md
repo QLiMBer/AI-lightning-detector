@@ -20,6 +20,11 @@ Common issues and fixes
     - `HF_HOME=.hf-cache TRANSFORMERS_CACHE=.hf-cache/hub HF_HUB_ENABLE_HF_TRANSFER=1 lightning-detector scan --input videos --output reports --fps 1 --max-frames 16 --max-slice-nums 1 --attn sdpa --dtype float16 --no-preload-model`
   - Remove stale locks if any: `find .hf-cache -name '*.lock' -delete` (ensure no runs are active).
 
+- Tensor size mismatch during inference
+  - Symptom: `ERROR: inference_failed: Sizes of tensors must match ... Expected size 245 but got size 244 ...`
+  - Cause: frames result in different token patch grids; the model expects identical shapes across the batch.
+  - Fix: keep default resizing (448×448) or set `--image-size 448`. Avoid `--no-resize` unless you guarantee uniform shapes.
+
 - Segmentation fault during GPU move (e.g., after "Moving model to CUDA…")
   - Install Accelerate and use automatic placement: `uv pip install --prefix .venv accelerate`
   - Use safer loader flags (already in this repo): `device_map='auto'`, `low_cpu_mem_usage=True`, `offload_folder='.offload'`

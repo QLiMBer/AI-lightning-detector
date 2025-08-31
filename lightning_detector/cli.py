@@ -209,11 +209,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 temporal_ids=temporal_ids,
             )
             dt = time.perf_counter() - t0
-            print(
-                colorize(f"Finished: {vid.name}", "green", enable=not args.no_color)
-                + f" in {dt:.1f}s",
-                flush=True,
-            )
+            last_dt = dt
         except Exception as e:
             # Emit a clearer console note on first failure
             if "flash_attn_required" in str(e):
@@ -221,8 +217,34 @@ def cmd_scan(args: argparse.Namespace) -> int:
                     "Model requested flash-attn. Install 'flash-attn' or try --attn sdpa.\n"
                     "If sdpa still fails, flash-attn wheels may be required for your CUDA."
                 )
-            raw_text = f"ERROR: inference_failed: {e}"
-            print(colorize(f"Failed: {vid.name}", "magenta", enable=not args.no_color) + f" ({e})", flush=True)
+            # Retry once with safe settings if it's a size-mismatch issue
+            msg = str(e)
+            if "Sizes of tensors must match" in msg:
+                try:
+                    frames_retry = normalize_frames(frames, target_size=448)
+                    t1 = time.perf_counter()
+                    raw_text = model.chat(
+                        frames=frames_retry,
+                        prompt=prompt,
+                        max_slice_nums=1,
+                        enable_thinking=False,
+                        temporal_ids=None,
+                    )
+                    last_dt = time.perf_counter() - t1
+                except Exception as e2:
+                    raw_text = f"ERROR: inference_failed: {e2}"
+                    print(
+                        colorize(f"Failed: {vid.name}", "magenta", enable=not args.no_color)
+                        + f" ({e2})",
+                        flush=True,
+                    )
+            else:
+                raw_text = f"ERROR: inference_failed: {e}"
+                print(
+                    colorize(f"Failed: {vid.name}", "magenta", enable=not args.no_color)
+                    + f" ({e})",
+                    flush=True,
+                )
 
         data = parse_detection_json(raw_text)
 
@@ -238,11 +260,11 @@ def cmd_scan(args: argparse.Namespace) -> int:
         write_json(json_path, data)
         write_text(txt_path, raw_text.strip() + "\n")
 
-        # console summary of detections
+        # Build single-line result summary
         dets = data.get("detections", []) if isinstance(data, dict) else []
         n_dets = len(dets) if isinstance(dets, list) else 0
+        summary = " — No detections"
         if n_dets > 0:
-            # sort by confidence desc when available
             try:
                 dets_sorted = sorted(
                     [d for d in dets if isinstance(d, dict)],
@@ -252,19 +274,24 @@ def cmd_scan(args: argparse.Namespace) -> int:
             except Exception:
                 dets_sorted = [d for d in dets if isinstance(d, dict)]
             top = dets_sorted[:3]
-            print(
-                colorize("Detections:", "yellow", enable=not args.no_color),
-                *[
-                    f"{d.get('start_sec', '?'):.2f}-{d.get('end_sec', '?'):.2f}s"
-                    f" conf={d.get('confidence', '?'):.2f}"
-                    for d in top
-                    if isinstance(d.get("start_sec", None), (int, float))
-                    and isinstance(d.get("end_sec", None), (int, float))
-                ],
-            )
-        else:
-            print(colorize("No detections", "magenta", enable=not args.no_color))
+            parts: List[str] = []
+            for d in top:
+                s = d.get("start_sec")
+                e = d.get("end_sec")
+                c = d.get("confidence")
+                if isinstance(s, (int, float)) and isinstance(e, (int, float)) and isinstance(c, (int, float)):
+                    parts.append(f"{s:.2f}-{e:.2f}s({c:.2f})")
+            if parts:
+                summary = " — top: " + ", ".join(parts)
 
+        # Print finished line once with summary (if we had a successful dt)
+        if 'last_dt' in locals():
+            print(
+                colorize(f"Finished: {vid.name}", "green", enable=not args.no_color)
+                + f" in {last_dt:.1f}s"
+                + summary,
+                flush=True,
+            )
         # (paths written) Intentionally not printing to keep console compact
 
     # Write aggregated summaries

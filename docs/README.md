@@ -4,14 +4,11 @@ Docs Index
 - Setup (Python/CUDA/Deps): `docs/minicpm-v/setup.md`
 - Video Inference Usage: `docs/minicpm-v/usage-video.md`
 - Deployment Options: `docs/minicpm-v/deployment.md`
-- Lightning Detector Plan: `docs/plan.md`
-- Open Questions: `docs/open-questions.md`
+- Troubleshooting & First‑Run Notes: `docs/troubleshooting.md`
 - References: `docs/references.md`
- - Troubleshooting & First‑Run Notes: `docs/troubleshooting.md`
 
 Utilities
 
 - Inspect video metadata: `scripts/inspect_videos.py` (prints fps, resolution, frames, duration for all `.mp4` in `videos/`)
 - Session Restart Checklist: `docs/restart.md`
-- Next Steps: `docs/next-steps.md`
- - Minimal model smoke test: `scripts/smoke_chat.py`
+- Minimal model smoke test: `scripts/smoke_chat.py`

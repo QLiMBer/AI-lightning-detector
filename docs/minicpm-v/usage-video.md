@@ -18,7 +18,7 @@ model = AutoModel.from_pretrained(
     model_id,
     trust_remote_code=True,
     attn_implementation='sdpa',
-    torch_dtype=torch.bfloat16,
+    dtype=torch.bfloat16,
 ).eval().cuda()
 tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
 

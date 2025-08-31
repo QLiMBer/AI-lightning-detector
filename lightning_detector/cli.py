@@ -111,6 +111,13 @@ def cmd_scan(args: argparse.Namespace) -> int:
         print(f"No .mp4 files found in {input_dir}", flush=True)
         return 0
     print(f"Discovered {len(files)} .mp4 file(s) under {input_dir}", flush=True)
+    # Run configuration banner
+    banner = (
+        f"Config: fps={args.fps} | packing={args.packing} | max_frames={args.max_frames} | "
+        f"slice_nums={args.max_slice_nums} | image_size={getattr(args, 'image_size', 448)} | "
+        f"attn={args.attn} | dtype={args.dtype}"
+    )
+    print(colorize(banner, "bold", enable=not getattr(args, "no_color", False)))
 
     # Preload model once to fail fast and trigger weight download
     model = None
@@ -143,12 +150,9 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 # continue with error report for this file
                 model = None
 
-        print(f"Inspecting: {vid.name}", flush=True)
+        print(colorize(f">>> Inspecting: {vid.name}", "cyan", enable=not args.no_color), flush=True)
         meta = inspect_video(vid)
-        print(
-            f"Meta: {meta.width}x{meta.height} @ {meta.fps:.2f}fps, frames={meta.frames}, duration={meta.duration_sec:.1f}s",
-            flush=True,
-        )
+        # sampling
         method = "uniform" if args.packing == 0 else "temporal_packing"
 
         if args.packing == 0:
@@ -156,7 +160,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 vid, choose_fps=args.fps, max_frames=args.max_frames
             )
             temporal_ids = None
-            print(f"Sampled {len(frames)} frame(s) uniformly", flush=True)
+            sampled_note = f"sampled={len(frames)}"
         else:
             frames, temporal_ids = sample_frames_with_temporal_ids(
                 vid,
@@ -166,10 +170,16 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 force_packing=args.packing,
             )
             timestamps = []  # not used in packed mode
-            print(
-                f"Sampled {len(frames)} frame(s) with packing; groups={len(temporal_ids)}",
-                flush=True,
-            )
+            sampled_note = f"sampled={len(frames)} groups={len(temporal_ids)}"
+
+        # Normalize frame sizes to avoid tensor-size mismatches inside the model
+        if not getattr(args, "no_resize", False):
+            frames = normalize_frames(frames, target_size=int(args.image_size))
+
+        print(
+            f"Meta: {meta.width}x{meta.height} @ {meta.fps:.2f}fps, frames={meta.frames}, duration={meta.duration_sec:.1f}s | {sampled_note}",
+            flush=True,
+        )
 
         # Normalize frame sizes to avoid tensor-size mismatches inside the model
         if not getattr(args, "no_resize", False):
@@ -189,15 +199,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 # last-chance lazy init if preload failed
                 print("Initializing model lazily…", flush=True)
                 model = MiniCPMWrapper(ModelConfig(attn_impl=args.attn, torch_dtype=args.dtype))
-            print(
-                colorize(
-                    f"Processing: {vid.name}",
-                    "cyan",
-                    enable=not args.no_color,
-                )
-                + f" | frames={len(frames)} | method={method} | attn={args.attn} | dtype={args.dtype}",
-                flush=True,
-            )
+            # Processing begins (filename already printed above)
             t0 = time.perf_counter()
             raw_text = model.chat(
                 frames=frames,
@@ -220,6 +222,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
                     "If sdpa still fails, flash-attn wheels may be required for your CUDA."
                 )
             raw_text = f"ERROR: inference_failed: {e}"
+            print(colorize(f"Failed: {vid.name}", "magenta", enable=not args.no_color) + f" ({e})", flush=True)
 
         data = parse_detection_json(raw_text)
 
@@ -262,7 +265,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
         else:
             print(colorize("No detections", "magenta", enable=not args.no_color))
 
-        print(f"Wrote {json_path} and {txt_path}")
+        # (paths written) Intentionally not printing to keep console compact
 
     # Write aggregated summaries
     update_index(output_dir)
